@@ -7,8 +7,8 @@
 import pyrealsense2 as rs
 import numpy as np
 import cv2
-from realsense_device_manager import post_process_depth_frame
-from helper_functions import convert_depth_frame_to_pointcloud, get_clipped_pointcloud
+from box_dimensioner_multicam.realsense_device_manager import post_process_depth_frame
+from box_dimensioner_multicam.helper_functions import convert_depth_frame_to_pointcloud, get_clipped_pointcloud
 
 
 def calculate_cumulative_pointcloud(frames_devices, calibration_info_devices, roi_2d, depth_threshold = 0.01):

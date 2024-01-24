@@ -229,6 +229,7 @@ class DeviceManager:
             for (serial, device) in self._enabled_devices.items():
                 streams = device.pipeline_profile.get_streams()
                 frameset = device.pipeline.poll_for_frames() #frameset will be a pyrealsense2.composite_frame object
+                # print(f'if, {frameset.size() == len(streams)}: {frameset.size()} == {len(streams)}')
                 if frameset.size() == len(streams):
                     dev_info = (serial, device.product_line)
                     frames[dev_info] = {}
@@ -240,7 +241,8 @@ class DeviceManager:
                             frame = frameset.first_or_default(stream.stream_type())
                             key_ = stream.stream_type()
                         frames[dev_info][key_] = frame
-
+            # print(f'While, {len(frames) < len(self._enabled_devices.items())}: {len(frames)} < {len(self._enabled_devices.items())}')
+        # print('left the loop')
         return frames
 
     def get_depth_shape(self):

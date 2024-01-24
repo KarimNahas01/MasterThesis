@@ -3,10 +3,13 @@ import numpy as np
 import cv2
 import time
 import os
-from 
+from box_dimensioner_multicam.box_dimensioner_multicam_demo import run_calibration, calculate_values, visualise_measurements
 
 
 def main():
+
+    calibration_output = run_calibration()
+
     pipe = rs.pipeline()
     cfg = rs.config()
 
@@ -48,7 +51,12 @@ def main():
         color_image = np.asanyarray(color_frame.get_data())
         
         depth_image = cv2.flip(depth_image, 1)
-        color_image = cv2.flip(color_image, 1)
+        # color_image = cv2.flip(color_image, 1)
+        # print('Before calulate values')
+        # bounding_box_points_color_image, length, width, height, point_cloud = calculate_values(calibration_output, color_frame)
+        # print('After calulate values and before visualise measurements')
+        # visualise_measurements(color_image, bounding_box_points_color_image, length, width, height)
+        # print('After visualise measurements')
         
         # depth_image[depth_image == 0] = 256
 
@@ -98,49 +106,6 @@ def store_images(curr_img, depth_image, depth_values, color_image,
     np.save(depth_values_path, depth_values)
 
     cv2.waitKey(500)
-
-
-
-
-# def main(): 
-#     capture_thread = threading.Thread(target=capture_and_show)
-
-#     capture_thread.start()
-
-
-#     for img_index in range(1,n_imgs+1):
-#         print("Robot is moving the camera to position", img_index)
-#         cv2.waitKey(3000)
-
-#         cap = cv2.VideoCapture(0)
-#         _, frame = cap.read()
-
-#         filename = folder_name + "/connector_1_" + str(img_index) + '.jpg'
-
-#         cv2.imwrite(filename, frame)
-#         cap.release()
-
-#     pipe.stop()
-
-
-# def capture_and_show():
-#     while True:
-#         frame = pipe.wait_for_frames()
-#         depth_frame = frame.get_depth_frame()
-#         color_frame = frame.get_color_frame()
-
-#         depth_image = np.asanyarray(depth_frame.get_data())
-#         color_image = np.asanyarray(color_frame.get_data())
-
-#         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.5), cv2.COLORMAP_JET)
-
-#         # gray_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
-
-#         cv2.imshow('RGB image', color_image)
-#         cv2.imshow('Depth image', depth_colormap)
-
-#         if cv2.waitKey(1) == ord('q'):
-#             break
 
 if __name__ == '__main__':
     main()
