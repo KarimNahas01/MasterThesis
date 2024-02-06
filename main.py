@@ -5,8 +5,8 @@ import time
 import os
 import socket
 import math
-import struct
-import random
+
+import RPi.GPIO as GPIO
 
 import calibration_tools as ct
 # from box_dimensioner_multicam.box_dimensioner_multicam_demo import run_calibration#, calculate_values, visualise_measurements
@@ -63,6 +63,13 @@ def main():
 
     # calibration_output = run_calibration()
 
+    OUTPUT_PORT = 23
+    INPUT_PORT = 26
+
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(OUTPUT_PORT, GPIO.OUT)
+    GPIO.setup(INPUT_PORT, GPIO.IN)
+
     pipeline = rs.pipeline()
     config = rs.config()
 
@@ -72,6 +79,7 @@ def main():
 
     align_to = rs.stream.color # ----
     align = rs.align(align_to) # ----
+    
 
     robot_ip = "192.168.2.177"
     robot_port = 30002
@@ -94,9 +102,20 @@ def main():
     # Example usage
     # target_coordinate = [500, 200, -280, 1.237, -2.697, 1.623]
     # move_to_cartesian_coordinate(target_coordinate)
-    move_J(random_pos)
-    time.sleep(10)
-    move_J(home_pos)
+    # move_J(random_pos)
+    # time.sleep(10)
+    # move_J(home_pos)
+
+    ur_script_set_output = "set_standard_analog_out(1, 0.33)\n"
+    ur_script_read_input = "get_standard_analog_in(0)\n"
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((robot_ip, robot_port))
+
+    sock.sendall(ur_script_set_output.encode())
+    # input_state = sock.recv(1024)
+    # print("Received:", input_state)
+
     # for _ in range(40):
     #     move_J(random_pos)
     #     time.sleep(10)
