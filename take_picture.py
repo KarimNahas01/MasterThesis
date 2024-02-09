@@ -66,7 +66,7 @@ def await_message_code(code):
     while True:
         connection, _ = sock.accept()
         data = connection.recv(1024)
-        # display_image(display_depth=False, display_infrared=False)
+        display_image(display_depth=False, display_infrared=False)
 
         if data:
             data_received = data.decode()
@@ -136,7 +136,7 @@ def display_image(display_rgb=True, display_depth=True, display_infrared=True):
 
         return depth_colormap, depth_image, color_image
 
-def store_images(curr_img, depth_image, depth_values, color_image, 
+def store_images(curr_img, depth_values, depth_image, color_image, 
                  rgb_folder_path, depth_folder_path, depth_values_folder_path):
 
     color_img_path = os.path.join(rgb_folder_path, f'color_img_pos_{curr_img}.png')
