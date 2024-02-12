@@ -12,9 +12,12 @@ TERMINATE_CODE = '404'
 pipeline = rs.pipeline()
 config = rs.config()
 
-config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-config.enable_stream(rs.stream.infrared, 640, 480, rs.format.y8, 30)
+# RESOLUTION = [640, 480]
+RESOLUTION = [1280, 720]
+
+config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, 30)
+config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, 30)
+config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, 30)
 
 align_to = rs.stream.color # ----
 align = rs.align(align_to) # ----
@@ -25,7 +28,6 @@ profile = pipeline.start(config)
 device = profile.get_device()
 
 def main():
-
 
     connector = await_message_code(STARTUP_CODE)
     rgb_folder_path, depth_folder_path, depth_values_folder_path = setup_directories(connector)
@@ -143,8 +145,10 @@ def store_images(curr_img, depth_values, depth_image, color_image,
     depth_img_path = os.path.join(depth_folder_path, f'depth_img_pos_{curr_img}.png')
     depth_values_path = os.path.join(depth_values_folder_path, f'depth_values_pos_{curr_img}.npy')
 
+    depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.5), cv2.COLORMAP_JET)
+
     cv2.imwrite(color_img_path, color_image)
-    cv2.imwrite(depth_img_path, depth_image)
+    cv2.imwrite(depth_img_path, depth_colormap)
     np.save(depth_values_path, depth_values)
 
     cv2.waitKey(500)
