@@ -13,7 +13,7 @@ pipeline = rs.pipeline()
 config = rs.config()
 
 # RESOLUTION = [1280, 720]
-FRAMERATE = {'color':15, 'depth':6, 'infrared':6}
+# FRAMERATE = {'color':15, 'depth':6, 'infrared':6}
 
 RESOLUTION = [640, 480]
 FRAMERATE = {'color':30, 'depth':30, 'infrared':30}
@@ -44,7 +44,7 @@ def main():
 
 
 def setup_directories(connector, images_folder_name='img'):
-    folder_path = os.path.join(images_folder_name, f'connector_{connector}')
+    folder_path = os.path.join(images_folder_name, f'{connector}_connector')
 
     rgb_folder_path = f'{folder_path}/rgb_imgs'
     depth_folder_path = f'{folder_path}/depth_imgs'
@@ -73,7 +73,7 @@ def await_message_code(code):
     while True:
         connection, _ = sock.accept()
         data = connection.recv(1024)
-        display_image(display_depth=False, display_infrared=False)
+        display_image(display_infrared=False)
 
         if data:
             data_received = data.decode()
