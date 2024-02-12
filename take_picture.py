@@ -14,10 +14,11 @@ config = rs.config()
 
 # RESOLUTION = [640, 480]
 RESOLUTION = [1280, 720]
+FRAMERATE = {'color':15, 'depth':6, 'infrared':6}
 
-config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, 30)
-config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, 30)
-config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, 30)
+config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, FRAMERATE['color'])
+config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, FRAMERATE['depth'])
+config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, FRAMERATE['infrared'])
 
 align_to = rs.stream.color # ----
 align = rs.align(align_to) # ----
