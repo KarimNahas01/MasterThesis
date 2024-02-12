@@ -12,16 +12,18 @@ TERMINATE_CODE = '404'
 pipeline = rs.pipeline()
 config = rs.config()
 
-# RESOLUTION = [640, 480]
-RESOLUTION = [1280, 720]
+# RESOLUTION = [1280, 720]
 FRAMERATE = {'color':15, 'depth':6, 'infrared':6}
+
+RESOLUTION = [640, 480]
+FRAMERATE = {'color':30, 'depth':30, 'infrared':30}
 
 config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, FRAMERATE['color'])
 config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, FRAMERATE['depth'])
 config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, FRAMERATE['infrared'])
 
 align_to = rs.stream.color # ----
-align = rs.align(align_to) # ----
+align = rs.align(align_to) # ----z
 # pipe.start(config)
 
 # Start the RealSense pipeline
@@ -58,6 +60,8 @@ def setup_directories(connector, images_folder_name='img'):
 
 def await_message_code(code):
 
+    print('Awaiting message...')
+
     code_length = len(code)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -89,12 +93,18 @@ def await_message_code(code):
 
 def display_image(display_rgb=True, display_depth=True, display_infrared=True):
         frame = pipeline.wait_for_frames(timeout_ms=5000)
-        # aligned_frames = align.process(frame)
+        aligned_frames = align.process(frame)
+
         frames = {
-            'depth': frame.get_depth_frame(), # ///
-            'color': frame.get_color_frame(), # ///
-            'infrared': frame.get_infrared_frame() # ///
+            'depth': aligned_frames.get_depth_frame(),
+            'color': aligned_frames.get_color_frame(),
+            'infrared': aligned_frames.get_infrared_frame()
         }
+        # frames = {
+        #     'depth': frame.get_depth_frame(), # ///
+        #     'color': frame.get_color_frame(), # ///
+        #     'infrared': frame.get_infrared_frame() # ///
+        # }
 
         depth_image = np.asanyarray(frames['depth'].get_data())
         color_image = np.asanyarray(frames['color'].get_data())
