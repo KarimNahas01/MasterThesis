@@ -5,9 +5,11 @@ import time
 import os
 import socket
 
+LISTENING_PORT = 30003
 STARTUP_CODE = '011'
 TAKE_PICTURE_CODE = '231'
 TERMINATE_CODE = '404'
+EXECUTION_FINISHED = '000'
 
 pipeline = rs.pipeline()
 config = rs.config()
@@ -23,24 +25,54 @@ config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z1
 config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, FRAMERATE['infrared'])
 
 align_to = rs.stream.color # ----
-align = rs.align(align_to) # ----z
+align = rs.align(align_to) # ----
 # pipe.start(config)
 
 # Start the RealSense pipeline
 profile = pipeline.start(config)
 device = profile.get_device()
 
-def main():
 
-    connector = await_message_code(STARTUP_CODE)
-    rgb_folder_path, depth_folder_path, depth_values_folder_path = setup_directories(connector)
+rgb_folder_path, normalized_images_folder_path = "", ""
+
+def main():
+    global rgb_folder_path, normalized_images_folder_path
     
+    connector = await_message_code(STARTUP_CODE)
+    rgb_folder_path, depth_folder_path, depth_values_folder_path, normalized_images_folder_path = setup_directories(connector)
     while True:
         curr_img = await_message_code(TAKE_PICTURE_CODE)
         depth_colormap, depth_image, color_image = display_image(display_depth=False, display_infrared=False)
         store_images(curr_img, depth_colormap, depth_image, color_image,
                     rgb_folder_path, depth_folder_path, depth_values_folder_path)
+    # color_images = load_images_from_folder(rgb_folder_path)
+    # depth_images = load_images_from_folder(depth_folder_path)
+    
 
+    """ 
+    # TEMP STUFF -------------
+
+    folder_path = os.path.join('img', f'test3_connector')
+    rgb_folder_path = f'{folder_path}/rgb_imgs'
+
+    
+    normalized_images_folder_path = f'{folder_path}/normalized_images'
+    os.makedirs(normalized_images_folder_path, exist_ok=True)
+
+    # ----------------------- """
+
+def preprocessing():
+    print("Preprocessing started")
+
+    color_images = load_images_from_folder(rgb_folder_path)
+    npy_normalized = normalize_and_store(color_images, normalized_images_folder_path)
+
+    # print(np.shape(npy_normalized))
+
+    is_normalized(color_images[1])
+    is_normalized(npy_normalized[0])
+
+    exit()
 
 
 def setup_directories(connector, images_folder_name='img'):
@@ -49,14 +81,16 @@ def setup_directories(connector, images_folder_name='img'):
     rgb_folder_path = f'{folder_path}/rgb_imgs'
     depth_folder_path = f'{folder_path}/depth_imgs'
     depth_values_folder_path = f'{folder_path}/depth_values'
+    normalized_images_folder_path = f'{folder_path}/normalized_images'
 
     os.makedirs(images_folder_name, exist_ok=True)
     os.makedirs(folder_path, exist_ok=True)
     os.makedirs(rgb_folder_path, exist_ok=True)
     os.makedirs(depth_folder_path, exist_ok=True)
     os.makedirs(depth_values_folder_path, exist_ok=True)
+    os.makedirs(normalized_images_folder_path, exist_ok=True)
 
-    return rgb_folder_path, depth_folder_path, depth_values_folder_path
+    return rgb_folder_path, depth_folder_path, depth_values_folder_path, normalized_images_folder_path
 
 def await_message_code(code):
 
@@ -66,14 +100,13 @@ def await_message_code(code):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    server_address = ('', 30003)  # Example listening port
+    server_address = ('', LISTENING_PORT)  # Example listening port
     sock.bind(server_address)
 
     sock.listen(1)
     while True:
         connection, _ = sock.accept()
         data = connection.recv(1024)
-        display_image(display_infrared=False)
 
         if data:
             data_received = data.decode()
@@ -81,10 +114,14 @@ def await_message_code(code):
             message_received = data_received[code_length:]
 
             print("Received:", data_received)
+            
             if code_received == TERMINATE_CODE:
                 print('Program terminated')
                 exit()
-            if code_received == code:
+            elif code_received == EXECUTION_FINISHED:
+                cv2.destroyAllWindows()
+                preprocessing()
+            elif code_received == code:
                 print(f"Code {code_received} received.")
                 print(f'Message received: {message_received}')
                 break
@@ -163,6 +200,52 @@ def store_images(curr_img, depth_values, depth_image, color_image,
     np.save(depth_values_path, depth_values)
 
     cv2.waitKey(500)
+
+def load_images_from_folder(folder):
+    num_images = sum(1 for file in os.listdir(folder) if any(file.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg"]))
+    # images = np.empty((num_images,) + (RESOLUTION[0], RESOLUTION[1], 3), dtype=np.uint8) #creates empty array of images size (4, 640, 480, 3)
+    images = {}
+    for idx, filename in enumerate(os.listdir(folder)):
+        # Check if the file is an image (you can add more extensions if needed)
+        if any(filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg"]):
+            img_path = os.path.join(folder, filename)
+            img = cv2.imread(img_path)
+            # cv2.imshow("Inside load_images", img)
+            # cv2.waitKey(500)
+            if img is not None:
+                images[idx+1] = img
+                # np.append(images, img)
+    return images
+
+def normalize_and_store(images, normalized_images_folder_path):
+    if not os.path.exists(normalized_images_folder_path):
+        os.makedirs(normalized_images_folder_path)
+
+    npy_images = []
+    for idx, image in images.items():
+        # Normalize pixel values to [0, 1]
+        normalized_image = cv2.normalize(image, None, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+
+        """ # Convert the normalized image to the appropriate data type (uint8) and scale pixel values to [0, 255]
+        # normalized_image_uint8 = (normalized_image * 255).astype('uint8') """
+
+        cv2.imshow("Normalized image", normalized_image)
+        cv2.waitKey(5000)
+
+        normalized_img_path = os.path.join(normalized_images_folder_path, f'normalized_img_pos_{idx}.npy')
+
+        npy_image = np.array(normalized_image, dtype=np.float32)
+        npy_images.append(npy_image)
+        np.save(normalized_img_path, npy_image)
+
+    return npy_images
+
+def is_normalized(image):
+    # Check if all pixel values are within the range [0, 1]
+    min_val = np.min(image)
+    max_val = np.max(image)
+    print(f'Min: {min_val}, Max: {max_val}, is_normalized = {min_val >= 0 and max_val <= 1}')
+    return min_val >= 0 and max_val <= 1
 
 if __name__ == '__main__':
     main()
