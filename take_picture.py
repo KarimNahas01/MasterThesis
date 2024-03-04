@@ -71,7 +71,7 @@ def preprocessing():
 
     is_normalized(color_images[1])
     is_normalized(npy_normalized[0])
-
+    
     exit()
 
 
