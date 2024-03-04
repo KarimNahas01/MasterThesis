@@ -11,8 +11,7 @@ TAKE_PICTURE_CODE = '231'
 TERMINATE_CODE = '404'
 EXECUTION_FINISHED = '000'
 
-pipeline = rs.pipeline()
-config = rs.config()
+USING_REALSENSE_CAMERA = True
 
 # RESOLUTION = [1280, 720]
 # FRAMERATE = {'color':15, 'depth':6, 'infrared':6}
@@ -20,77 +19,154 @@ config = rs.config()
 RESOLUTION = [640, 480]
 FRAMERATE = {'color':30, 'depth':30, 'infrared':30}
 
-config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, FRAMERATE['color'])
-config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, FRAMERATE['depth'])
-config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, FRAMERATE['infrared'])
+BRIGHTNESS_RANGE = (-120, 120)
 
-align_to = rs.stream.color # ----
-align = rs.align(align_to) # ----
-# pipe.start(config)
+# REPOSITORY =  {'parent': "img",
+#                      'rgb': "rgb_images",
+#                      'depth': "depth_images",
+#                      'depth_values': "depth_values",
+#                      'normalized': "normalized_images",
+#                      'blurred': "blurred images"}
 
-# Start the RealSense pipeline
-profile = pipeline.start(config)
-device = profile.get_device()
+DIRECTORIES = {'parent':         "img",
+               'rgb':            "rgb_images",
+               'depth':          "depth_images",
+               'depth_values':   "depth_values",
+               'normalized':     "normalized_images",
+               'blurred':        "blurred_images"}
+
+folder_path = ""
+
+
+if USING_REALSENSE_CAMERA:
+    pipeline = rs.pipeline()
+    config = rs.config()
+
+    config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, FRAMERATE['color'])
+    config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, FRAMERATE['depth'])
+    config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, FRAMERATE['infrared'])
+
+    align_to = rs.stream.color # ----
+    align = rs.align(align_to) # ----
+    # pipe.start(config)
+
+    # Start the RealSense pipeline
+    profile = pipeline.start(config)
+    device = profile.get_device()
 
 
 rgb_folder_path, normalized_images_folder_path = "", ""
 
 def main():
-    global rgb_folder_path, normalized_images_folder_path
-    
+    global folder_path
+        
     connector = await_message_code(STARTUP_CODE)
-    rgb_folder_path, depth_folder_path, depth_values_folder_path, normalized_images_folder_path = setup_directories(connector)
+    folder_path = os.path.join(DIRECTORIES['parent'], f'{connector}_connector')
+    setup_directories(folder_path, DIRECTORIES, exclude_first=True)
+    
     while True:
         curr_img = await_message_code(TAKE_PICTURE_CODE)
-        depth_colormap, depth_image, color_image = display_image(display_depth=False, display_infrared=False)
-        store_images(curr_img, depth_colormap, depth_image, color_image,
-                    rgb_folder_path, depth_folder_path, depth_values_folder_path)
+        depth_colormap, depth_image, color_image = display_image(display_rgb=False, display_depth=True, display_infrared=False)
+        # store_images(curr_img, depth_colormap, depth_image, color_image,
+        #             rgb_folder_path, depth_folder_path, depth_values_folder_path)
+        store_images({curr_img: color_image}, DIRECTORIES['rgb'], 'color_img')
+        store_images({curr_img: depth_colormap}, DIRECTORIES['depth'], 'depth_img')
+        store_images({curr_img: depth_image}, DIRECTORIES['depth_values'], 'depth_values', is_numpy=True)
+        # print(depth_colormap.shape())
+        # print(f'colormap: min={min(depth_colormap)}, \t max={max(depth_colormap)}')
+        # print(f'image: min={np.min(depth_image)}, \t max={np.max(depth_image)}')
     # color_images = load_images_from_folder(rgb_folder_path)
     # depth_images = load_images_from_folder(depth_folder_path)
     
 
-    """ 
+    
     # TEMP STUFF -------------
 
-    folder_path = os.path.join('img', f'test3_connector')
+    folder_path = os.path.join('img', 'connector_more_poses_test')
     rgb_folder_path = f'{folder_path}/rgb_imgs'
 
     
     normalized_images_folder_path = f'{folder_path}/normalized_images'
     os.makedirs(normalized_images_folder_path, exist_ok=True)
 
-    # ----------------------- """
+    blurred_images = preprocessing()
+    augment_images(load_images_from_folder(rgb_folder_path))
+
+    # -----------------------
 
 def preprocessing():
     print("Preprocessing started")
 
-    color_images = load_images_from_folder(rgb_folder_path)
-    npy_normalized = normalize_and_store(color_images, normalized_images_folder_path)
+    color_images = load_images_from_folder(f"{folder_path}/{DIRECTORIES['rgb']}")
+    blurred_images = apply_blur(color_images)
+
+
+    idx = 3
+
+    # cv2.imshow(f'Original image {idx}', color_images[idx])
+    # cv2.imshow(f"Simple average blur | Gaussian blur for image {idx}",
+    #             np.hstack((blurred_images[idx]['simple_average'], blurred_images[idx]['gaussian'])))
+    # cv2.imshow(f"Median blur | Bilateral blur for image {idx}",
+    #             np.hstack((blurred_images[idx]['median'], blurred_images[idx]['bilateral'])))
+    # cv2.waitKey(0) 
+    # cv2.destroyAllWindows()
+
+
+    """ npy_normalized = normalize_and_store(color_images, normalized_images_folder_path)
 
     # print(np.shape(npy_normalized))
 
     is_normalized(color_images[1])
-    is_normalized(npy_normalized[0])
-    
+    is_normalized(npy_normalized[0]) """
+
     exit()
+    return blurred_images # and other preprocessed images
 
+def augment_images(images):
 
-def setup_directories(connector, images_folder_name='img'):
-    folder_path = os.path.join(images_folder_name, f'{connector}_connector')
+    for idx, image in images.items():
+        brightness_factor = np.random.randint(BRIGHTNESS_RANGE[0], [BRIGHTNESS_RANGE[1]])
+        adjusted_image = np.clip(image.astype(int) + brightness_factor, 0, 255).astype(np.uint8)
+        cv2.imshow(f"Original image | Brightness change (pos {idx})",
+        np.hstack((image, adjusted_image)))
+        cv2.waitKey(2000) 
+        cv2.destroyAllWindows()
+        
+def apply_blur(images, simple_avg_kernal=(9,9), gaussian_kernal=(9,9), median_kernal=9,
+                bilateral_consts={'d':15, 'sigmaColor':80, 'sigmaSpace':80}):
+    blurred_images = {}
+    for idx, img in images.items():
+        simple_avg_blur = cv2.blur(img, simple_avg_kernal)
+        gaussian_blur = cv2.GaussianBlur(img,gaussian_kernal,cv2.BORDER_DEFAULT)
+        median_blur = cv2.medianBlur(img, median_kernal)
+        bilateral_blur = cv2.bilateralFilter(img,bilateral_consts['d'],bilateral_consts['sigmaColor'],bilateral_consts['sigmaSpace'])
 
-    rgb_folder_path = f'{folder_path}/rgb_imgs'
-    depth_folder_path = f'{folder_path}/depth_imgs'
-    depth_values_folder_path = f'{folder_path}/depth_values'
-    normalized_images_folder_path = f'{folder_path}/normalized_images'
+        blurred_images[idx] = {'simple_average': simple_avg_blur, 'gaussian': gaussian_blur, 
+                               'median': median_blur, 'bilateral': bilateral_blur}
+        
+        store_images(blurred_images[idx], DIRECTORIES['blurred'], 'blur')
+    
+    return blurred_images
 
-    os.makedirs(images_folder_name, exist_ok=True)
-    os.makedirs(folder_path, exist_ok=True)
-    os.makedirs(rgb_folder_path, exist_ok=True)
-    os.makedirs(depth_folder_path, exist_ok=True)
-    os.makedirs(depth_values_folder_path, exist_ok=True)
-    os.makedirs(normalized_images_folder_path, exist_ok=True)
+def setup_directories(folder_path, directories, exclude_first=False):
 
-    return rgb_folder_path, depth_folder_path, depth_values_folder_path, normalized_images_folder_path
+    for idx, (_, directory) in enumerate(directories.items()):
+        if not (exclude_first and idx == 0):
+            path = os.path.join(folder_path, directory)
+            os.makedirs(path, exist_ok=True)
+    
+
+    # rgb_folder_path = f'{folder_path}/rgb_imgs'
+    # depth_folder_path = f'{folder_path}/depth_imgs'
+    # depth_values_folder_path = f'{folder_path}/depth_values'
+    # normalized_images_folder_path = f'{folder_path}/normalized_images'
+
+    # os.makedirs(images_folder_name, exist_ok=True)
+    # os.makedirs(folder_path, exist_ok=True)
+    # os.makedirs(rgb_folder_path, exist_ok=True)
+    # os.makedirs(depth_folder_path, exist_ok=True)
+    # os.makedirs(depth_values_folder_path, exist_ok=True)
+    # os.makedirs(normalized_images_folder_path, exist_ok=True)
 
 def await_message_code(code):
 
@@ -100,7 +176,7 @@ def await_message_code(code):
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    server_address = ('', LISTENING_PORT)  # Example listening port
+    server_address = ('', LISTENING_PORT)
     sock.bind(server_address)
 
     sock.listen(1)
@@ -186,35 +262,53 @@ def display_image(display_rgb=True, display_depth=True, display_infrared=True):
 
         return depth_colormap, depth_image, color_image
 
-def store_images(curr_img, depth_values, depth_image, color_image, 
-                 rgb_folder_path, depth_folder_path, depth_values_folder_path):
+def store_images(images, folder_name, file_name, is_numpy=False):
 
-    color_img_path = os.path.join(rgb_folder_path, f'color_img_pos_{curr_img}.png')
-    depth_img_path = os.path.join(depth_folder_path, f'depth_img_pos_{curr_img}.png')
-    depth_values_path = os.path.join(depth_values_folder_path, f'depth_values_pos_{curr_img}.npy')
+    # TODO: make a dictionary that includes the highest current stored image for each image type, rgb, depth, blurred etc. Add input of dict part or take from file_name
 
-    depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.5), cv2.COLORMAP_JET)
+    for idx, (key, image) in enumerate(images.items()):
+        suffix = key if key.isdigit() else f'{key}_{idx+1}'
+        img_path = f'{folder_path}/{folder_name}/{file_name}_{suffix}'
 
-    cv2.imwrite(color_img_path, color_image)
-    cv2.imwrite(depth_img_path, depth_colormap)
-    np.save(depth_values_path, depth_values)
+        # print(img_path)
 
-    cv2.waitKey(500)
+        if is_numpy: np.save(f'{img_path}.npy', image)
+        else: cv2.imwrite(f'{img_path}.png', image)
+        
+        cv2.waitKey(100)
+
+# def store_images(curr_img, depth_values, depth_image, color_image, 
+#                  rgb_folder_path, depth_folder_path, depth_values_folder_path):
+
+#     color_img_path = os.path.join(rgb_folder_path, f'color_img_pos_{curr_img}.png')
+#     depth_img_path = os.path.join(depth_folder_path, f'depth_img_pos_{curr_img}.png')
+#     depth_values_path = os.path.join(depth_values_folder_path, f'depth_values_pos_{curr_img}.npy')
+
+#     depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.5), cv2.COLORMAP_JET)
+
+#     cv2.imwrite(color_img_path, color_image)
+#     cv2.imwrite(depth_img_path, depth_colormap)
+#     np.save(depth_values_path, depth_values)
+
+#     cv2.waitKey(500)
 
 def load_images_from_folder(folder):
-    num_images = sum(1 for file in os.listdir(folder) if any(file.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg"]))
+    # num_images = sum(1 for file in os.listdir(folder) if any(file.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg"]))
     # images = np.empty((num_images,) + (RESOLUTION[0], RESOLUTION[1], 3), dtype=np.uint8) #creates empty array of images size (4, 640, 480, 3)
     images = {}
-    for idx, filename in enumerate(os.listdir(folder)):
+    print(folder)
+    file_map = enumerate(sorted(os.listdir(folder), key=lambda x: int(''.join(filter(str.isdigit, x)))))
+
+    for idx, filename in file_map:
         # Check if the file is an image (you can add more extensions if needed)
         if any(filename.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg"]):
             img_path = os.path.join(folder, filename)
             img = cv2.imread(img_path)
             # cv2.imshow("Inside load_images", img)
-            # cv2.waitKey(500)
+            # cv2.waitKey(0)
             if img is not None:
                 images[idx+1] = img
-                # np.append(images, img)
+                # images = np.append(images, img)
     return images
 
 def normalize_and_store(images, normalized_images_folder_path):
@@ -229,8 +323,8 @@ def normalize_and_store(images, normalized_images_folder_path):
         """ # Convert the normalized image to the appropriate data type (uint8) and scale pixel values to [0, 255]
         # normalized_image_uint8 = (normalized_image * 255).astype('uint8') """
 
-        cv2.imshow("Normalized image", normalized_image)
-        cv2.waitKey(5000)
+        cv2.imshow(f'Normalized image {idx}', normalized_image)
+        cv2.waitKey(2000)
 
         normalized_img_path = os.path.join(normalized_images_folder_path, f'normalized_img_pos_{idx}.npy')
 
