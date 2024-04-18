@@ -1,1 +1,5 @@
 img/
+EWASS_demo_img/
+runs/
+__pycache__/
+tmp/

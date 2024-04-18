@@ -157,7 +157,8 @@ def main():
     os.makedirs(rgb_folder_path, exist_ok=True)
     os.makedirs(depth_folder_path, exist_ok=True)
     os.makedirs(depth_values_folder_path, exist_ok=True)
-
+ 
+ 
     # data = np.load('img/connector_testing_123/depth_values/depth_values_pos_1.npy')
     # print(data[1:10, 1:10])
     # return
