@@ -1,64 +1,74 @@
+import dataset_generator as dg
+import annotation_tool as at
 import dataset_tester as dt
 import pyrealsense2 as rs
 import tkinter as tk
 import numpy as np
 import threading
+import json
 import time
 import cv2
-import sys
 import os
 
 from gpiozero.pins.pigpio import PiGPIOFactory
 from gpiozero import LED, Button
 from tkinter import simpledialog
 
-
-OUTPUT_PORT = 23    # AI 0
-INPUT_PORT = 26     # AO 1
-
-LISTENING_PORT = 30003
-STARTUP_CODE = '011'
-TAKE_PICTURE_CODE = '231'
-TERMINATE_CODE = '404'
-EXECUTION_FINISHED = '000'
-START_BACKEND = '123'
-
-# RASPBERYY_PI_IP = '192.168.2.218' # Ethernet
-RASPBERYY_PI_IP = '192.168.50.161' # WiFI
-
+# TODO: add these to a generic python file so that it can be imported. Also add commonly used methods there.
+# TODO: make it possible to replace the transparent background with an image of your choice. To reperesent different environments
+        
 USING_REALSENSE_CAMERA = True
 LEARNING_MODE = False
 
-# RESOLUTION = [1280, 720]
-# FRAMERATE = {'color':15, 'depth':6, 'infrared':6}
+CONSTANTS = json.load(open('constants.json'))
 
-RESOLUTION = [640, 480]
-FRAMERATE = {'color':30, 'depth':30, 'infrared':30}
+OUTPUT_PORT = CONSTANTS['ports']['OUTPUT_PORT']
+INPUT_PORT = CONSTANTS['ports']['INPUT_PORT']
 
-BRIGHTNESS_RANGE = (-120, 120)
+RASPBERYY_PI_IP = CONSTANTS["ip_adress"]["raspberry_pi"]
 
-# REPOSITORY =  {'parent': "img",
-#                      'rgb': "rgb_images",
-#                      'depth': "depth_images",
-#                      'depth_values': "depth_values",
-#                      'normalized': "normalized_images",
-#                      'blurred': "blurred images"}
 
-DIRECTORIES = {'parent':         "EWASS_demo_img",
-               'rgb':            "rgb_images",
-               'depth':          "depth_images",
-               'depth_values':   "depth_values",
-               'normalized':     "normalized_images",
-               'blurred':        "blurred_images"}
+IMAGE_RESOLUTION = CONSTANTS["image_props"]["resolution"]
+STREAM_FRAMERATE = CONSTANTS["image_props"]["framerate"]
+
+AUGMENT_VALUES = CONSTANTS["augment_values"]
 
 VARIABLES_FILE = 'stored_variables.txt'
 
+DIRECTORIES = CONSTANTS["directories"]
+
+PARENT_FOLDER_NAME = DIRECTORIES["parent"]["folder_name"]
+
+RGB_FOLDER_NAME = DIRECTORIES["rgb"]["folder_name"]
+RGB_FILE_NAME = DIRECTORIES["rgb"]['file_name']
+
+DEPTH_FOLDER_NAME = DIRECTORIES["depth"]["folder_name"]
+DEPTH_FILE_NAME = DIRECTORIES["depth"]['file_name']
+
+DEPTH_VALUES_FOLDER_NAME = DIRECTORIES["depth_values"]["folder_name"]
+DEPTH_VALUES_FILE_NAME = DIRECTORIES["depth_values"]['file_name']
+
+TRANSPARENT_FOLDER_NAME = DIRECTORIES["transparent"]["folder_name"]
+TRANSPARENT_FILE_NAME = DIRECTORIES["transparent"]['file_name']
+
+ANNOTATIONS_FOLDER_NAME = DIRECTORIES["annotations"]["folder_name"]
+ANNOTATIONS_FILE_NAME = DIRECTORIES["annotations"]['file_name']
+
+NORMALIZED_FOLDER_NAME = DIRECTORIES["normalized"]["folder_name"]
+NORMALIZED_FILE_NAME = DIRECTORIES["normalized"]['file_name']
+
+BLURRED_FOLDER_NAME = DIRECTORIES["blurred"]["folder_name"]
+BLURRED_FILE_NAME = DIRECTORIES["blurred"]['file_name']
+
+DATASET_STRUCTURE = CONSTANTS["dataset_structure"]
+DATASET_PATH = f'{PARENT_FOLDER_NAME}/{DATASET_STRUCTURE["name"]}'
+SUB_DIR_NAMES = DATASET_STRUCTURE['sub_dir_names']
+
 folder_path = ""
 
-
 try:
-    with open(VARIABLES_FILE, 'r') as f:
-        n_imgs = int(f.read())
+    with open(VARIABLES_FILE, 'r') as json_file:
+        n_imgs = int(json_file.read())
     print("Number of images read from file:", n_imgs)
 
 except FileNotFoundError:
@@ -66,7 +76,7 @@ except FileNotFoundError:
 
 
 root = tk.Tk()
-root.withdraw()  # Hide the main window
+root.withdraw()
 
 factory = PiGPIOFactory(host=RASPBERYY_PI_IP)
 move_robot = LED(OUTPUT_PORT, pin_factory=factory)
@@ -77,9 +87,9 @@ if USING_REALSENSE_CAMERA:
     pipeline = rs.pipeline()
     config = rs.config()
 
-    config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, FRAMERATE['color'])
-    config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, FRAMERATE['depth'])
-    config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, FRAMERATE['infrared'])
+    config.enable_stream(rs.stream.color, IMAGE_RESOLUTION[0], IMAGE_RESOLUTION[1], rs.format.bgr8, STREAM_FRAMERATE['color'])
+    config.enable_stream(rs.stream.depth, IMAGE_RESOLUTION[0], IMAGE_RESOLUTION[1], rs.format.z16, STREAM_FRAMERATE['depth'])
+    config.enable_stream(rs.stream.infrared, IMAGE_RESOLUTION[0], IMAGE_RESOLUTION[1], rs.format.y8, STREAM_FRAMERATE['infrared'])
 
     align_to = rs.stream.color # ----
     align = rs.align(align_to) # ----
@@ -97,8 +107,8 @@ def check_elapsed_time():
         move_robot.on()
         move_robot.off()
         if not take_picture.is_pressed:
-           print("Demo has finished executing")
-           os._exit(1)
+            print("Demo has finished executing")
+        os._exit(1)
         time.sleep(1)
 
 demo_done_thread = threading.Thread(target=check_elapsed_time)
@@ -111,7 +121,7 @@ def main():
     # return
     
     # connector_name =  input('\nInput name of connector: ').replace(" ", "_")
-    connector_name = "demo_tester" #simpledialog.askstring(title="Connector name", prompt="Input name of connector:").replace(" ", "_")
+    connector_name = simpledialog.askstring(title="Connector name", prompt="Input name of connector:").replace(" ", "_") 
 
     # print("User input:", connector_name)
 
@@ -147,16 +157,16 @@ def main():
 def take_picture_logic(n_imgs):
     global folder_path
     
-    curr_img = 0
+    curr_img = 1
     print("Start the program on the robot \n")
     
     while curr_img <= n_imgs:
         if USING_REALSENSE_CAMERA:
-            depth_colormap, depth_image, color_image = display_image(display_rgb=True, display_depth=True)
+            depth_colormap, depth_image, color_image, key = display_image(display_rgb=True, display_depth=True)
         # store_images(curr_img, depth_colormap, depth_image, color_image,
         #             rgb_folder_path, depth_folder_path, depth_values_folder_path)
         
-        if not take_picture.is_pressed:
+        if not take_picture.is_pressed or key == ord('t'):
             # time.sleep(1)
             # TODO: FIX END CALL
             '''
@@ -172,9 +182,9 @@ def take_picture_logic(n_imgs):
 
             print(f'Robot has reached position {curr_img}')
             if USING_REALSENSE_CAMERA:
-                store_images({str(curr_img): color_image}, DIRECTORIES['rgb'], 'color_img')
-                store_images({str(curr_img): depth_colormap}, DIRECTORIES['depth'], 'depth_img')
-                store_images({str(curr_img): depth_image}, DIRECTORIES['depth_values'], 'depth_values', is_numpy=True)
+                store_images({str(curr_img): color_image}, RGB_FOLDER_NAME, RGB_FILE_NAME)
+                store_images({str(curr_img): depth_colormap}, DEPTH_FOLDER_NAME, DEPTH_FILE_NAME)
+                store_images({str(curr_img): depth_image}, DEPTH_VALUES_FOLDER_NAME, DEPTH_VALUES_FILE_NAME, is_numpy=True)
                 print(f'Depth and RGB image for pos {curr_img} has been stored. \n')
 
             else:
@@ -213,7 +223,7 @@ def learn_path():
 def preprocessing():
     print("Preprocessing started")
 
-    color_images = load_images_from_folder(f"{folder_path}/{DIRECTORIES['rgb']}")
+    color_images = load_images_from_folder(f"{folder_path}/{RGB_FOLDER_NAME}")
     blurred_images = apply_blur(color_images)
 
 
@@ -241,7 +251,7 @@ def preprocessing():
 def augment_images(images):
 
     for idx, image in images.items():
-        brightness_factor = np.random.randint(BRIGHTNESS_RANGE[0], [BRIGHTNESS_RANGE[1]])
+        brightness_factor = np.random.randint(AUGMENT_VALUES["brightness_range"][0], [AUGMENT_VALUES["brightness_range"][1]])
         adjusted_image = np.clip(image.astype(int) + brightness_factor, 0, 255).astype(np.uint8)
         cv2.imshow(f"Original image | Brightness change (pos {idx})",
         np.hstack((image, adjusted_image)))
@@ -258,16 +268,16 @@ def apply_blur(images, simple_avg_kernal=(9,9), gaussian_kernal=(9,9), median_ke
         bilateral_blur = cv2.bilateralFilter(img,bilateral_consts['d'],bilateral_consts['sigmaColor'],bilateral_consts['sigmaSpace'])
 
         blurred_images[idx] = {'simple_average': simple_avg_blur, 'gaussian': gaussian_blur, 
-                               'median': median_blur, 'bilateral': bilateral_blur}
+                            'median': median_blur, 'bilateral': bilateral_blur}
         
-        store_images(blurred_images[idx], DIRECTORIES['blurred'], 'blur')
+        store_images(blurred_images[idx], BLURRED_FOLDER_NAME, 'blur')
     
     return blurred_images
 
 def get_current_version(connector_name):
     version = 1
 
-    path = os.path.join(DIRECTORIES['parent'], f'{connector_name}_connector')
+    path = os.path.join(PARENT_FOLDER_NAME, f'{connector_name}_connector')
 
     if not os.path.exists(path):
         return 1
@@ -284,14 +294,20 @@ def setup_directories(connector_name, exclude_first=False):
     version = get_current_version(connector_name)
 
     connector = f'{connector_name}_connector/v.{version}.0'
-    folder_path = os.path.join(DIRECTORIES['parent'], connector)
+    folder_path = os.path.join(PARENT_FOLDER_NAME, connector)
 
     for idx, (_, directory) in enumerate(DIRECTORIES.items()):
         if not (exclude_first and idx == 0):
-            path = os.path.join(folder_path, directory)
+            path = os.path.join(folder_path, directory["folder_name"])
             os.makedirs(path, exist_ok=True)
 
     print(f'Initiated v.{version}.0')
+
+    for _, value in list(DATASET_STRUCTURE.items())[2:]:
+        path = f'{DATASET_PATH}/{value["name"]}'
+
+        os.makedirs(f'{path}/{SUB_DIR_NAMES["images"]}', exist_ok=True)
+        os.makedirs(f'{path}/{SUB_DIR_NAMES["labels"]}', exist_ok=True)
     
 '''
 def send_message(message, receiver_ip=RECEIVER_IP, receiver_port=RECEIVER_PORT ):
@@ -407,7 +423,6 @@ def display_image(display_rgb=True, display_depth=True):
 
         combined_image = None
 
-        # Check which images to display and concatenate them horizontally
         if display_rgb:
             combined_image = color_image.copy() if combined_image is None else cv2.hconcat([combined_image, color_image])
         if display_depth:
@@ -415,12 +430,11 @@ def display_image(display_rgb=True, display_depth=True):
 
         title_name = 'RGB and depth images' if display_rgb and display_depth else 'RGB image' if display_rgb else 'Depth image'
 
-        # Display the combined image
         if not combined_image is None:
             cv2.imshow(title_name, cv2.flip(combined_image, 0))
-            cv2.waitKey(1)
+            key = cv2.waitKey(1)
 
-        return depth_colormap, depth_image, color_image
+        return depth_colormap, depth_image, color_image, key
 
 def store_images(images, folder_name, file_name, is_numpy=False):
 

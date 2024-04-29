@@ -1,0 +1,83 @@
+{
+    "ports": {
+        "OUTPUT_PORT": 23,
+        "INPUT_PORT": 26
+    },
+
+    "ip_adress": {
+        "raspberry_pi": "192.168.50.161"
+    },
+
+    "image_props": {
+        "resolution": [640, 480],
+        "framerate": {
+            "color": 30,
+            "depth": 30,
+            "infrared":30
+        }
+    },
+
+    "augment_values": {
+        "brightness_range": [-120, 120],
+        "noise_range": [-1.1, 1.1]        
+    },
+
+    "dataset_structure": {
+        "name": "dataset",
+        "sub_dir_names" : {
+            "images": "images",
+            "labels": "labels"
+        },
+        "train": {
+            "name": "train",
+            "split": 0.7
+        },
+        "val": {
+            "name": "valid",
+            "split": 0.2
+        },
+        "test": {
+            "name": "test",
+            "split": 0.1
+        }
+    },
+
+    "directories": {
+        "parent": {
+            "folder_name": "testing_everything"
+        },
+        "rgb": {
+            "folder_name": "rgb_images",
+            "file_name": "color_img"
+        },
+        "depth": {
+            "folder_name": "depth_images",
+            "file_name": "depth_img"
+        },
+        "depth_values": {
+            "folder_name": "depth_values",
+            "file_name": "depth_values"
+        },
+        "transparent": {
+            "folder_name": "transparent_images",
+            "file_name": "transparent_img"
+        },
+        "annotations": {
+            "folder_name": "annotations",
+            "file_name": "annotations"
+        },
+        "annotated_images":{
+            "folder_name": "annotated_images",
+            "file_name": "annotated_img"
+        },
+        "normalized": {
+            "folder_name": "normalized_images",
+            "file_name": "normalized_img"
+        },
+        "blurred": {
+            "folder_name": "blurred_images",
+            "file_name": "blurred_img"
+        }
+    }
+
+}
