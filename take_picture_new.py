@@ -116,6 +116,7 @@ demo_done_thread = threading.Thread(target=check_elapsed_time)
 def main():
     global folder_path
 
+
     # for i in range(1,21):
     #     os.makedirs(f'C:/Users/karim/OneDrive - Chalmers/University/Complex Adaptive Systems MSc/Master thesis/git/img/test_connector/v.{i}.0', exist_ok=True)
     # return
@@ -258,7 +259,7 @@ def augment_images(images):
         cv2.waitKey(2000) 
         cv2.destroyAllWindows()
         
-def apply_blur(images, simple_avg_kernal=(9,9), gaussian_kernal=(9,9), median_kernal=9,
+def apply_blur(images, simple_avg_kernal=(9,9), gaussian_kernal=(9,9), median_kernal=9, motion_kernal=9, motion_angle=45,
                 bilateral_consts={'d':15, 'sigmaColor':80, 'sigmaSpace':80}):
     blurred_images = {}
     for idx, img in images.items():
@@ -266,13 +267,29 @@ def apply_blur(images, simple_avg_kernal=(9,9), gaussian_kernal=(9,9), median_ke
         gaussian_blur = cv2.GaussianBlur(img,gaussian_kernal,cv2.BORDER_DEFAULT)
         median_blur = cv2.medianBlur(img, median_kernal)
         bilateral_blur = cv2.bilateralFilter(img,bilateral_consts['d'],bilateral_consts['sigmaColor'],bilateral_consts['sigmaSpace'])
+        motion_blur = motion_blur(img, motion_kernal, motion_angle)
 
         blurred_images[idx] = {'simple_average': simple_avg_blur, 'gaussian': gaussian_blur, 
-                            'median': median_blur, 'bilateral': bilateral_blur}
+                            'median': median_blur, 'bilateral': bilateral_blur, 'motion': motion_blur}
         
         store_images(blurred_images[idx], BLURRED_FOLDER_NAME, 'blur')
     
     return blurred_images
+
+def motion_blur(image, kernel_size, angle):
+    kernel = np.zeros((kernel_size, kernel_size))
+    angle_rad = np.deg2rad(angle)
+    cos_angle = np.cos(angle_rad)
+    sin_angle = np.sin(angle_rad)
+    center = kernel_size // 2
+    for i in range(kernel_size):
+        x = i - center
+        for j in range(kernel_size):
+            y = j - center
+            if np.abs(x * cos_angle + y * sin_angle) < 1:
+                kernel[i, j] = 1 / kernel_size
+    return cv2.filter2D(image, -1, kernel)
+
 
 def get_current_version(connector_name):
     version = 1
@@ -508,7 +525,7 @@ def normalize_and_store(images, normalized_images_folder_path):
 
     return npy_images
 
-def is_normalized(image):
+def is_normalized(image): 
     # Check if all pixel values are within the range [0, 1]
     min_val = np.min(image)
     max_val = np.max(image)
