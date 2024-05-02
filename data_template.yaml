@@ -1,0 +1,9 @@
+# This template is the skeleton structure for the data.yaml file in the dataset. Altering this will alter the data.yaml file upon creation of a new dataset.
+
+train: ../../dataset/train/images
+val: ../../dataset/valid/images
+test: ../../dataset/test/images
+
+nc: 
+
+names:

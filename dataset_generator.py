@@ -27,20 +27,24 @@ def main():
     
     setup_dataset_directories()
     load_and_store_files()
+    print('Dataset was generated.')
 
 def setup_dataset_directories():
-    for _, value in list(DATASET_STRUCTURE.items())[2:]:
-        path = f'{DATASET_PATH}/{value["name"]}'
+    n_imgs_train = len(os.listdir(f'{DATASET_PATH}/{DATASET_STRUCTURE["train"]["name"]}/{SUB_DIR_NAMES["images"]}'))
 
-        os.makedirs(f'{path}/{SUB_DIR_NAMES["images"]}', exist_ok=True)
-        os.makedirs(f'{path}/{SUB_DIR_NAMES["labels"]}', exist_ok=True)
+    for _, value in list(DATASET_STRUCTURE.items())[2:]:
+        for dir in ["images", "labels"]:
+            path = f'{DATASET_PATH}/{value["name"]}/{SUB_DIR_NAMES[dir]}'
+            if n_imgs_train > 0:
+                [os.remove(os.path.join(path, file)) for file in os.listdir(path)]
+            else:
+                os.makedirs(path, exist_ok=True) # This shouldnt be needed when ran through take_picture
 
 def load_and_store_files(parent_folder=PARENT_FOLDER_NAME):
     file_map = os.listdir(parent_folder)
+    filtered_folders = list(filter(lambda folder: folder.lower().endswith('connector'), file_map))
 
-    for folder in file_map:
-        if folder == DATASET_PATH.split('/')[1]:
-            continue
+    for folder in filtered_folders:
         versions = os.listdir(f'{parent_folder}/{folder}')
         max_version = max(versions, key=lambda x: float(x.split('.')[1]))
 

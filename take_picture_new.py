@@ -7,6 +7,7 @@ import numpy as np
 import threading
 import json
 import time
+import yaml
 import cv2
 import os
 
@@ -14,10 +15,9 @@ from gpiozero.pins.pigpio import PiGPIOFactory
 from gpiozero import LED, Button
 from tkinter import simpledialog
 
-# TODO: add these to a generic python file so that it can be imported. Also add commonly used methods there.
-# TODO: make it possible to replace the transparent background with an image of your choice. To reperesent different environments
+
         
-USING_REALSENSE_CAMERA = True
+USING_REALSENSE_CAMERA = False
 LEARNING_MODE = False
 
 CONSTANTS = json.load(open('constants.json'))
@@ -34,6 +34,7 @@ STREAM_FRAMERATE = CONSTANTS["image_props"]["framerate"]
 AUGMENT_VALUES = CONSTANTS["augment_values"]
 
 VARIABLES_FILE = 'stored_variables.txt'
+TEMPLATE_YAML_FILE = 'data_template.yaml'
 
 DIRECTORIES = CONSTANTS["directories"]
 
@@ -63,13 +64,14 @@ BLURRED_FILE_NAME = DIRECTORIES["blurred"]['file_name']
 DATASET_STRUCTURE = CONSTANTS["dataset_structure"]
 DATASET_PATH = f'{PARENT_FOLDER_NAME}/{DATASET_STRUCTURE["name"]}'
 SUB_DIR_NAMES = DATASET_STRUCTURE['sub_dir_names']
+DATA_YAML_FILE = f'{DATASET_PATH}/data.yaml'
 
 folder_path = ""
 
 try:
     with open(VARIABLES_FILE, 'r') as json_file:
         n_imgs = int(json_file.read())
-    print("Number of images read from file:", n_imgs)
+    # print("Number of images read from file:", n_imgs)
 
 except FileNotFoundError:
     print(f"Error: File '{VARIABLES_FILE}' not found. Please use teach mode.")
@@ -113,45 +115,34 @@ def check_elapsed_time():
 
 demo_done_thread = threading.Thread(target=check_elapsed_time)
 
-def main():
+def main(n_imgs=n_imgs):
     global folder_path
 
-
-    # for i in range(1,21):
-    #     os.makedirs(f'C:/Users/karim/OneDrive - Chalmers/University/Complex Adaptive Systems MSc/Master thesis/git/img/test_connector/v.{i}.0', exist_ok=True)
-    # return
-    
-    # connector_name =  input('\nInput name of connector: ').replace(" ", "_")
-    connector_name = simpledialog.askstring(title="Connector name", prompt="Input name of connector:").replace(" ", "_") 
+    if USING_REALSENSE_CAMERA: 
+        connector_name = simpledialog.askstring(title="Connector name", prompt="Input name of connector:").replace(" ", "_") 
 
     # print("User input:", connector_name)
 
-    setup_directories(connector_name, exclude_first=True)
-    
-    take_picture_logic(n_imgs)
+        setup_directories(connector_name, exclude_first=True)
+        take_picture_logic(n_imgs)
 
-    
-
-                # print(depth_colormap.shape())
-        # print(f'colormap: min={min(depth_colormap)}, \t max={max(depth_colormap)}')
-        # print(f'image: min={np.min(depth_image)}, \t max={np.max(depth_image)}')
     # color_images = load_images_from_folder(rgb_folder_path)
     # depth_images = load_images_from_folder(depth_folder_path)
     
 
     
-    # TEMP STUFF -------------
-    '''
-    folder_path = os.path.join('img', 'connector_more_poses_test')
-    rgb_folder_path = f'{folder_path}/rgb_imgs'
+    # # TEMP STUFF -------------
+    
+    # folder_path = os.path.join('img', 'connector_more_poses_test')
+    # rgb_folder_path = f'{folder_path}/rgb_imgs'
 
     
-    normalized_images_folder_path = f'{folder_path}/normalized_images'
-    os.makedirs(normalized_images_folder_path, exist_ok=True)
+    # normalized_images_folder_path = f'{folder_path}/normalized_images'
+    # os.makedirs(normalized_images_folder_path, exist_ok=True)
 
-    blurred_images = preprocessing()
-    augment_images(load_images_from_folder(rgb_folder_path))
-    '''
+    # blurred_images = preprocessing()
+    # augment_images(load_images_from_folder(rgb_folder_path))
+    
 
     # -----------------------
 
@@ -196,10 +187,10 @@ def take_picture_logic(n_imgs):
             move_robot.off()
     
     print("Execution finished")
+    return
     print("Starting the predicition")
     demo_done_thread.start()
     dt.predict()
-    return
 
 def learn_path():
     prompt = input("Are you sure you want to teach? (Y/N)")
@@ -325,6 +316,30 @@ def setup_directories(connector_name, exclude_first=False):
 
         os.makedirs(f'{path}/{SUB_DIR_NAMES["images"]}', exist_ok=True)
         os.makedirs(f'{path}/{SUB_DIR_NAMES["labels"]}', exist_ok=True)
+
+    connector_name = connector_name.replace('_',' ')
+
+    if not os.path.exists(DATA_YAML_FILE):
+        with open(TEMPLATE_YAML_FILE, 'r') as yaml_template:
+            data = yaml.safe_load(yaml_template)
+    else:
+        with open(DATA_YAML_FILE, 'r') as yaml_data:
+            data = yaml.safe_load(yaml_data)
+    classes = data["names"]
+    if classes is None:
+        nc = 0
+        data['names'] = {0: connector_name}
+    else:
+        for _, value in classes.items():
+            if value == connector_name:
+                return
+        nc = len(classes)
+        data['names'][nc] = connector_name
+        
+    data['nc'] = nc+1
+
+    with open(DATA_YAML_FILE, 'w') as file:
+        yaml.dump(data, file)
     
 '''
 def send_message(message, receiver_ip=RECEIVER_IP, receiver_port=RECEIVER_PORT ):

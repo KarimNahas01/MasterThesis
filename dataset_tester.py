@@ -12,39 +12,42 @@ from torchvision.models.detection import fasterrcnn_resnet50_fpn
 # from roboflow import Roboflow
 from ultralytics import YOLO
 
-
+USING_REALSENSE_CAMERA = True
 
 RESOLUTION = [640, 480]
 FRAMERATE = {'color':30, 'depth':30, 'infrared':30}
 
-MODEL_PATH = 'model/improved_demo_model.pt'
+MODEL_PATH = 'runs/detect/train6/weights/best.pt'
+# MODEL_PATH = 'C:/Users/karim/Downloads/best (2).pt'
+
 FRAME_PATH = 'tmp/frame_read.png'
-'''
-pipeline = rs.pipeline()
-config = rs.config()
 
-config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, FRAMERATE['color'])
-# config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, FRAMERATE['depth'])
-# config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, FRAMERATE['infrared'])
+if USING_REALSENSE_CAMERA:
+    pipeline = rs.pipeline()
+    config = rs.config()
 
-align_to = rs.stream.color # ----
-align = rs.align(align_to) # ----
+    config.enable_stream(rs.stream.color, RESOLUTION[0], RESOLUTION[1], rs.format.bgr8, FRAMERATE['color'])
+    # config.enable_stream(rs.stream.depth, RESOLUTION[0], RESOLUTION[1], rs.format.z16, FRAMERATE['depth'])
+    # config.enable_stream(rs.stream.infrared, RESOLUTION[0], RESOLUTION[1], rs.format.y8, FRAMERATE['infrared'])
 
-profile = pipeline.start(config)
-device = profile.get_device()
-'''
+    align_to = rs.stream.color # ----
+    align = rs.align(align_to) # ----
+
+    profile = pipeline.start(config)
+    device = profile.get_device()
 
 def main():
     # predict('img/white_connector/rgb_images/color_img_pos_1.png')
     # predict('EWASS_demo_img/pictures_for_demo_connector/v.1.0/rgb_images')
     # predict('EWASS_demo_img/pictures_for_demo_connector/v.2.0/rgb_images')
-
-    # predict()
-
-    predict(f'EWASS_demo_img/pictures_for_demo_connector/v.1.0/rgb_images',
-              save=True, folder_name='some_predictions', delay=1000)
-    predict('EWASS_demo_img/more_images_connector/v.1.0/rgb_images',
-              save=True, folder_name='some_predictions2', delay=1000)
+    if USING_REALSENSE_CAMERA:
+        predict()
+    else:  
+        predict('testing_everything/dakr_gray_large_connector/v.1.0/rgb_images')
+        # predict(f'EWASS_demo_img/pictures_for_demo_connector/v.1.0/rgb_images',
+        #         save=True, folder_name='some_predictions', delay=1000)
+        # predict('EWASS_demo_img/more_images_connector/v.1.0/rgb_images',
+                # save=True, folder_name='some_predictions2', delay=1000)
     # while True:
     #     get_image()
     #     predict(FRAME_PATH)

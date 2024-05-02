@@ -13,7 +13,7 @@
         "framerate": {
             "color": 30,
             "depth": 30,
-            "infrared":30
+            "infrared": 30
         }
     },
 
@@ -44,7 +44,7 @@
 
     "directories": {
         "parent": {
-            "folder_name": "testing_everything"
+            "folder_name": "start_to_end_testing"
         },
         "rgb": {
             "folder_name": "rgb_images",

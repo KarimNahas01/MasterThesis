@@ -1,0 +1,8 @@
+names:
+  0: 'yes'
+  1: maybe
+  2: 'no'
+nc: 3
+test: ../../dataset/test/images
+train: ../../dataset/train/images
+val: ../../dataset/valid/images

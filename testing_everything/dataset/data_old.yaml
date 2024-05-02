@@ -1,0 +1,10 @@
+train: ../../dataset/train/images
+val: ../../dataset/valid/images
+test: ../../dataset/test/images
+
+nc: 3
+
+names:
+    0: dark_gray_large
+    1: dakr_gray_large
+    2: green_large

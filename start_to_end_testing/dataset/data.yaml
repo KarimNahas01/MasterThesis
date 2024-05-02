@@ -1,0 +1,8 @@
+names:
+  0: green_large
+  1: large_gray
+  2: realsense_box
+nc: 3
+test: ../../dataset/test/images
+train: ../../dataset/train/images
+val: ../../dataset/valid/images

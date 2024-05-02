@@ -1,11 +1,12 @@
 import pyrealsense2 as rs
 import numpy as np
 import threading
+import json
 import time
+import yaml
 import cv2
 import sys
 import os
-import json
 
 import matplotlib.pyplot as plt
 
@@ -45,6 +46,7 @@ ANNOTATED_IMAGES_FILE_NAME = DIRECTORIES["annotated_images"]['file_name']
 
 DATASET_STRUCTURE = CONSTANTS["dataset_structure"]
 DATASET_PATH = f'{PARENT_FOLDER_NAME}/{DATASET_STRUCTURE["name"]}'
+DATA_YAML_FILE = f'{DATASET_PATH}/data.yaml'
 
 if USING_REALSENSE_CAMERA:
     pipeline = rs.pipeline()
@@ -106,6 +108,17 @@ def annotate_data(folder_path, connector_name):
 
 def get_connector_class(connector_name):
 
+    # Read the existing YAML data
+    with open(DATA_YAML_FILE, 'r') as file:
+        data = yaml.safe_load(file)
+
+    classes = data["names"]
+
+    for key, value in classes.items():
+        if value == connector_name:
+            return key
+
+    """
     classes = json.load(open('classes.json'))
 
     for key, value in classes["names"].items():
@@ -119,6 +132,7 @@ def get_connector_class(connector_name):
         json.dump(classes, f, indent=4)
 
     return new_key
+    """
 
 def remove_background(depth_value, rgb_image, idx, folder_path=None, verbose=False, save_img=False):
 
