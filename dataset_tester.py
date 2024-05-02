@@ -12,7 +12,7 @@ from torchvision.models.detection import fasterrcnn_resnet50_fpn
 # from roboflow import Roboflow
 from ultralytics import YOLO
 
-USING_REALSENSE_CAMERA = True
+USING_REALSENSE_CAMERA = False
 
 RESOLUTION = [640, 480]
 FRAMERATE = {'color':30, 'depth':30, 'infrared':30}
